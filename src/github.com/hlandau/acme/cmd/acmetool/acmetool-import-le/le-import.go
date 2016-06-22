@@ -14,23 +14,23 @@ import (
 	"github.com/hlandau/acme/acmeapi"
 	"github.com/hlandau/acme/acmeapi/acmeendpoints"
 	"github.com/hlandau/acme/acmeapi/acmeutils"
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/xlog"
 	"golang.org/x/net/context"
 	jose "gopkg.in/square/go-jose.v1"
 )
 
-func Main(log xlog.Logger, stateDirName, lePath string) {
-	cmdImportLE(log, stateDirName, lePath)
-	acmetool_reconcile.Main(log, stateDirName)
+func Main(ctx acmetool.Ctx, lePath string) {
+	cmdImportLE(ctx, lePath)
+	acmetool_reconcile.Main(ctx)
 }
 
-func cmdImportLE(log xlog.Logger, stateDirName, lePath string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func cmdImportLE(ctx acmetool.Ctx, lePath string) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	accountNames, err := getLEAccountNames(lePath)
-	log.Fatale(err, "cannot inspect accounts directory - do you have permissions to read the Let's Encrypt directory (i.e. are you root)?")
+	ctx.Logger.Fatale(err, "cannot inspect accounts directory - do you have permissions to read the Let's Encrypt directory (i.e. are you root)?")
 
 	// In order to import a Let's Encrypt state directory, we must:
 	//   - import the account keys
@@ -42,27 +42,27 @@ func cmdImportLE(log xlog.Logger, stateDirName, lePath string) {
 
 	for _, accountName := range accountNames {
 		acct, err := importLEAccount(s, lePath, accountName)
-		log.Fatale(err, "import account")
+		ctx.Logger.Fatale(err, "import account")
 
 		durls[acct.DirectoryURL] = struct{}{}
 	}
 
 	keyFiles, err := filepath.Glob(filepath.Join(lePath, "keys", "*.pem"))
-	log.Fatale(err)
+	ctx.Logger.Fatale(err)
 
 	// Import certificate keys.
 	for _, keyFile := range keyFiles {
 		err := importKey(s, keyFile)
-		log.Fatale(err, "import key")
+		ctx.Logger.Fatale(err, "import key")
 	}
 
 	// Import certificates.
 	certFiles, err := filepath.Glob(filepath.Join(lePath, "archive", "*", "cert*.pem"))
-	log.Fatale(err)
+	ctx.Logger.Fatale(err)
 
 	for _, certFile := range certFiles {
 		err := importCert(s, certFile)
-		log.Fatale(err, "import certificate")
+		ctx.Logger.Fatale(err, "import certificate")
 	}
 
 	// If there is no default provider set, and we have only one directory URL
@@ -71,7 +71,7 @@ func cmdImportLE(log xlog.Logger, stateDirName, lePath string) {
 		for p := range durls {
 			s.DefaultTarget().Request.Provider = p
 			err := s.SaveTarget(s.DefaultTarget())
-			log.Fatale(err, "couldn't set default provider")
+			ctx.Logger.Fatale(err, "couldn't set default provider")
 			break
 		}
 	}

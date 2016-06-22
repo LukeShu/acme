@@ -5,26 +5,26 @@ import (
 	"fmt"
 
 	"github.com/hlandau/acme/acmeapi/acmeutils"
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
 	"github.com/hlandau/acme/storageops"
-	"github.com/hlandau/xlog"
 )
 
-func Main(log xlog.Logger, stateDirName, hooksDirName string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func Main(ctx acmetool.Ctx) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
-	info := statusString(s, hooksDirName)
-	log.Fatale(err, "status")
+	info := statusString(ctx, s)
+	ctx.Logger.Fatale(err, "status")
 
 	fmt.Print(info)
 }
 
-func statusString(s storage.Store, hooksDirName string) string {
+func statusString(ctx acmetool.Ctx, s storage.Store) string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "Settings:\n")
 	fmt.Fprintf(&buf, "  ACME_STATE_DIR: %s\n", s.Path())
-	fmt.Fprintf(&buf, "  ACME_HOOKS_DIR: %s\n", hooksDirName)
+	fmt.Fprintf(&buf, "  ACME_HOOKS_DIR: %s\n", ctx.HooksDir)
 	fmt.Fprintf(&buf, "  Default directory URL: %s\n", s.DefaultTarget().Request.Provider)
 	fmt.Fprintf(&buf, "  Preferred key type: %v\n", &s.DefaultTarget().Request.Key)
 	fmt.Fprintf(&buf, "  Additional webroots:\n")

@@ -3,19 +3,19 @@ package acmetool_revoke
 import (
 	"os"
 
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
 	"github.com/hlandau/acme/storageops"
-	"github.com/hlandau/xlog"
 )
 
-func Main(log xlog.Logger, stateDirName, certSpec string) {
+func Main(ctx acmetool.Ctx, certSpec string) {
 	f, _ := os.Open(certSpec)
 	//var fi os.FileInfo
 	if f != nil {
 		defer f.Close()
 		//var err error
 		//fi, err = f.Stat()
-		//log.Panice(err)
+		//ctx.Logger.Panice(err)
 	}
 	//u, _ := url.Parse(certSpec)
 
@@ -29,20 +29,20 @@ func Main(log xlog.Logger, stateDirName, certSpec string) {
 
 	case storage.IsWellFormattedCertificateOrKeyID(certSpec):
 		// key or certificate ID
-		revokeByCertificateID(log, stateDirName, certSpec)
+		revokeByCertificateID(ctx, certSpec)
 
 	default:
-		log.Fatalf("don't understand argument, must be a certificate or key ID: %q", certSpec)
+		ctx.Logger.Fatalf("don't understand argument, must be a certificate or key ID: %q", certSpec)
 	}
 }
 
-func revokeByCertificateID(log xlog.Logger, stateDirName string, certID string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func revokeByCertificateID(ctx acmetool.Ctx, certID string) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	err = storageops.RevokeByCertificateOrKeyID(s, certID)
-	log.Fatale(err, "revoke")
+	ctx.Logger.Fatale(err, "revoke")
 
 	err = storageops.Reconcile(s)
-	log.Fatale(err, "reconcile")
+	ctx.Logger.Fatale(err, "reconcile")
 }

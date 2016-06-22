@@ -3,20 +3,20 @@ package acmetool_want
 import (
 	acmetool_reconcile "github.com/hlandau/acme/cmd/acmetool/acmetool-reconcile"
 
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/xlog"
 )
 
-func Main(log xlog.Logger, stateDirName string, reconcile bool, want []string) {
-	cmdWant(log, stateDirName, want)
+func Main(ctx acmetool.Ctx, reconcile bool, want []string) {
+	cmdWant(ctx, want)
 	if reconcile {
-		acmetool_reconcile.Main(log, stateDirName)
+		acmetool_reconcile.Main(ctx)
 	}
 }
 
-func cmdWant(log xlog.Logger, stateDirName string, want []string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func cmdWant(ctx acmetool.Ctx, want []string) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	alreadyExists := false
 	s.VisitTargets(func(t *storage.Target) error {
@@ -46,5 +46,5 @@ func cmdWant(log xlog.Logger, stateDirName string, want []string) {
 	}
 
 	err = s.SaveTarget(&tgt)
-	log.Fatale(err, "add target")
+	ctx.Logger.Fatale(err, "add target")
 }

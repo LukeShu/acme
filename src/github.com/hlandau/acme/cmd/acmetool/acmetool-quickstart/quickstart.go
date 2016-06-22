@@ -29,11 +29,11 @@ var hooksFlag *string
 var batchFlag *bool
 var expertFlag *bool
 
-func Main(logger xlog.Logger, stateDirName, hooksDirName string, batch, expert bool) {
-	log = logger
-	stateFlag = &stateDirName
-	hooksFlag = &hooksDirName
-	batchFlag = &batch
+func Main(ctx acmetool.Ctx, expert bool) {
+	log = ctx.Logger
+	stateFlag = &ctx.StateDir
+	hooksFlag = &ctx.HooksDir
+	batchFlag = &ctx.Batch
 	expertFlag = &expert
 
 	s, err := storage.NewFDB(*stateFlag)

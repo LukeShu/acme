@@ -4,16 +4,16 @@ import (
 	"io/ioutil"
 
 	"github.com/hlandau/acme/acmeapi/acmeutils"
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/xlog"
 )
 
-func Main(log xlog.Logger, stateDirName string, filename string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func Main(ctx acmetool.Ctx, filename string) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	err = importKey(s, filename)
-	log.Fatale(err, "import key")
+	ctx.Logger.Fatale(err, "import key")
 }
 
 func importKey(s storage.Store, filename string) error {

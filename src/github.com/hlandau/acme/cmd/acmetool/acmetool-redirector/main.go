@@ -4,15 +4,14 @@ import (
 	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/redirector"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/xlog"
 	service "gopkg.in/hlandau/service.v2"
 )
 
-func Main(log xlog.Logger, stateDirName, rpath, gid string) {
+func Main(ctx acmetool.Ctx, rpath, gid string) {
 	if rpath == "" {
 		// redirector process is internet-facing and must never touch private keys
 		storage.Neuter()
-		rpath = determineWebroot(log, stateDirName)
+		rpath = determineWebroot(ctx)
 	}
 
 	service.Main(&service.Info{
@@ -29,9 +28,9 @@ func Main(log xlog.Logger, stateDirName, rpath, gid string) {
 	})
 }
 
-func determineWebroot(log xlog.Logger, stateDirName string) string {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func determineWebroot(ctx acmetool.Ctx) string {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	webrootPaths := s.DefaultTarget().Request.Challenge.WebrootPaths
 	if len(webrootPaths) > 0 {

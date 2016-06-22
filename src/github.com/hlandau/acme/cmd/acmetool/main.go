@@ -141,33 +141,40 @@ func main() {
 		log.Errore(err, "cannot load response file, continuing anyway")
 	}
 
+	ctx := acmetool.Ctx{
+		Logger:   log,
+		StateDir: *stateFlag,
+		HooksDir: *hooksFlag,
+		Batch:    *batchFlag,
+	}
+
 	switch cmd {
 	case "reconcile":
-		acmetool_reconcile.Main(log, *stateFlag)
+		acmetool_reconcile.Main(ctx)
 	case "cull":
-		acmetool_cull.Main(log, *stateFlag, *cullSimulateFlag)
+		acmetool_cull.Main(ctx, *cullSimulateFlag)
 	case "status":
-		acmetool_status.Main(log, *stateFlag, *hooksFlag)
+		acmetool_status.Main(ctx)
 	case "account-thumbprint":
-		acmetool_account_thumbprint.Main(log, *stateFlag)
+		acmetool_account_thumbprint.Main(ctx)
 	case "want":
-		acmetool_want.Main(log, *stateFlag, *wantReconcile, *wantArg)
+		acmetool_want.Main(ctx, *wantReconcile, *wantArg)
 	case "unwant":
-		acmetool_unwant.Main(log, *stateFlag, *unwantArg)
+		acmetool_unwant.Main(ctx, *unwantArg)
 	case "quickstart":
-		acmetool_quickstart.Main(log, *stateFlag, *hooksFlag, *batchFlag, *expertFlag)
+		acmetool_quickstart.Main(ctx, *expertFlag)
 	case "redirector":
-		acmetool_redirector.Main(log, *stateFlag, *redirectorPathFlag, *redirectorGIDFlag)
+		acmetool_redirector.Main(ctx, *redirectorPathFlag, *redirectorGIDFlag)
 	case "test-notify":
-		acmetool_test_notify.Main(log, *stateFlag, *hooksFlag, *testNotifyArg)
+		acmetool_test_notify.Main(ctx, *testNotifyArg)
 	case "import-key":
-		acmetool_import_key.Main(log, *stateFlag, *importKeyArg)
+		acmetool_import_key.Main(ctx, *importKeyArg)
 	case "import-jwk-account":
-		acmetool_import_jwk_account.Main(log, *stateFlag, *importJWKURLArg, *importJWKPathArg)
+		acmetool_import_jwk_account.Main(ctx, *importJWKURLArg, *importJWKPathArg)
 	case "import-le":
-		acmetool_import_le.Main(log, *stateFlag, *importLEArg)
+		acmetool_import_le.Main(ctx, *importLEArg)
 	case "revoke":
-		acmetool_revoke.Main(log, *stateFlag, *revokeArg)
+		acmetool_revoke.Main(ctx, *revokeArg)
 	}
 }
 

@@ -4,26 +4,26 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/xlog"
 	jose "gopkg.in/square/go-jose.v1"
 )
 
-func Main(log xlog.Logger, stateDirName, argURL, argPath string) {
-	s, err := storage.NewFDB(stateDirName)
-	log.Fatale(err, "storage")
+func Main(ctx acmetool.Ctx, argURL, argPath string) {
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	f, err := os.Open(argPath)
-	log.Fatale(err, "cannot open private key file")
+	ctx.Logger.Fatale(err, "cannot open private key file")
 	defer f.Close()
 
 	b, err := ioutil.ReadAll(f)
-	log.Fatale(err, "cannot read file")
+	ctx.Logger.Fatale(err, "cannot read file")
 
 	k := jose.JsonWebKey{}
 	err = k.UnmarshalJSON(b)
-	log.Fatale(err, "cannot unmarshal key")
+	ctx.Logger.Fatale(err, "cannot unmarshal key")
 
 	_, err = s.ImportAccount(argURL, k.Key)
-	log.Fatale(err, "cannot import account key")
+	ctx.Logger.Fatale(err, "cannot import account key")
 }
