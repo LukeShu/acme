@@ -1,8 +1,8 @@
 package acmetool_redirector
 
 import (
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/redirector"
-	"github.com/hlandau/acme/responder"
 	"github.com/hlandau/acme/storage"
 	"github.com/hlandau/xlog"
 	service "gopkg.in/hlandau/service.v2"
@@ -38,5 +38,5 @@ func determineWebroot(log xlog.Logger, stateDirName string) string {
 		return webrootPaths[0]
 	}
 
-	return responder.StandardWebrootPath
+	return acmetool.DefaultWebRootDir
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hlandau/acme/storage"
+	"github.com/hlandau/acme/acmetool"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -70,7 +70,7 @@ used, or, failing that, the path "%s" (recommended).
 
 The --xlog options control the logging. The --service options control privilege
 dropping and daemonization and are applicable only to the redirector subcommand.
-`, storage.RecommendedPath)
+`, acmetool.DefaultStateDir)
 
 func init() {
 	kingpin.CommandLine.Help = helpText

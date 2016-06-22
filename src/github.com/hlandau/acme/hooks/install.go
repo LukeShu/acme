@@ -10,10 +10,6 @@ import (
 // not overwritten unless it contains the string "#!acmetool-managed!#" in its
 // first 4096 bytes.
 func Replace(hookDirectory, name, data string) error {
-	if hookDirectory == "" {
-		hookDirectory = DefaultPath
-	}
-
 	filename := filepath.Join(hookDirectory, name)
 
 	isManaged, err := isManagedFile(filename)

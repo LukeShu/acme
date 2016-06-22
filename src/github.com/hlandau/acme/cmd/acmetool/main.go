@@ -23,9 +23,8 @@ import (
 	acmetool_want "github.com/hlandau/acme/cmd/acmetool/acmetool-want"
 
 	"github.com/hlandau/acme/acmeapi"
-	"github.com/hlandau/acme/hooks"
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/interaction"
-	"github.com/hlandau/acme/storage"
 	"github.com/hlandau/degoutils/xlogconfig"
 	"github.com/hlandau/xlog"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -37,15 +36,15 @@ var log, Log = xlog.New("acmetool")
 
 var (
 	stateFlag = kingpin.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
-			Default(storage.RecommendedPath).
+			Default(acmetool.DefaultStateDir).
 			Envar("ACME_STATE_DIR").
-			PlaceHolder(storage.RecommendedPath).
+			PlaceHolder(acmetool.DefaultStateDir).
 			String()
 
 	hooksFlag = kingpin.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
-			Default(hooks.RecommendedPath).
+			Default(acmetool.DefaultHooksDir).
 			Envar("ACME_HOOKS_DIR").
-			PlaceHolder(hooks.RecommendedPath).
+			PlaceHolder(acmetool.DefaultHooksDir).
 			String()
 
 	batchFlag = kingpin.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
@@ -119,7 +118,6 @@ func main() {
 	*hooksFlag, err = filepath.Abs(*hooksFlag)
 	log.Fatale(err, "hooks directory path")
 
-	hooks.DefaultPath = *hooksFlag
 	acmeapi.UserAgent = "acmetool"
 	xlogconfig.Init()
 
@@ -149,7 +147,7 @@ func main() {
 	case "cull":
 		acmetool_cull.Main(log, *stateFlag, *cullSimulateFlag)
 	case "status":
-		acmetool_status.Main(log, *stateFlag)
+		acmetool_status.Main(log, *stateFlag, *hooksFlag)
 	case "account-thumbprint":
 		acmetool_account_thumbprint.Main(log, *stateFlag)
 	case "want":

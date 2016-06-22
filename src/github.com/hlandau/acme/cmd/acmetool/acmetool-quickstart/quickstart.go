@@ -13,6 +13,7 @@ import (
 
 	"github.com/hlandau/acme/acmeapi"
 	"github.com/hlandau/acme/acmeapi/acmeendpoints"
+	"github.com/hlandau/acme/acmetool"
 	"github.com/hlandau/acme/hooks"
 	"github.com/hlandau/acme/interaction"
 	"github.com/hlandau/acme/storage"
@@ -340,10 +341,10 @@ func formulateCron(root bool) string {
 		s += "root "
 	}
 	s += fmt.Sprintf("%s --batch ", exepath.Abs)
-	if *stateFlag != storage.RecommendedPath {
+	if *stateFlag != acmetool.DefaultStateDir {
 		s += fmt.Sprintf(`--state="%s" `, *stateFlag)
 	}
-	if *hooksFlag != hooks.RecommendedPath {
+	if *hooksFlag != acmetool.DefaultHooksDir {
 		s += fmt.Sprintf(`--hooks="%s" `, *hooksFlag)
 	}
 
@@ -447,9 +448,6 @@ func setUserCron(b []byte) error {
 func promptInstallCombinedHooks() bool {
 	// Always install if the hook is already installed.
 	hooksPath := *hooksFlag
-	if hooksPath == "" {
-		hooksPath = hooks.DefaultPath
-	}
 
 	if _, err := os.Stat(filepath.Join(hooksPath, "haproxy")); err == nil {
 		return true
