@@ -1,0 +1,75 @@
+[submodule "src/github.com/mitchellh/go-wordwrap"]
+	path = src/github.com/mitchellh/go-wordwrap
+	url = https://github.com/mitchellh/go-wordwrap
+[submodule "src/github.com/peterhellberg/link"]
+	path = src/github.com/peterhellberg/link
+	url = https://github.com/peterhellberg/link
+[submodule "src/github.com/godbus/dbus"]
+	path = src/github.com/godbus/dbus
+	url = https://github.com/godbus/dbus
+[submodule "src/github.com/hlandauf/gspt"]
+	path = src/github.com/hlandauf/gspt
+	url = https://github.com/hlandauf/gspt
+[submodule "src/github.com/jmhodges/clock"]
+	path = src/github.com/jmhodges/clock
+	url = https://github.com/jmhodges/clock
+[submodule "src/github.com/ogier/pflag"]
+	path = src/github.com/ogier/pflag
+	url = https://github.com/ogier/pflag
+[submodule "src/github.com/shiena/ansicolor"]
+	path = src/github.com/shiena/ansicolor
+	url = https://github.com/shiena/ansicolor
+[submodule "src/github.com/coreos/go-systemd"]
+	path = src/github.com/coreos/go-systemd
+	url = https://github.com/coreos/go-systemd
+[submodule "src/github.com/mattn/go-isatty"]
+	path = src/github.com/mattn/go-isatty
+	url = https://github.com/mattn/go-isatty
+[submodule "src/github.com/hlandau/xlog"]
+	path = src/github.com/hlandau/xlog
+	url = https://github.com/hlandau/xlog
+[submodule "src/github.com/hlandau/degoutils"]
+	path = src/github.com/hlandau/degoutils
+	url = https://github.com/hlandau/degoutils
+[submodule "src/github.com/satori/go.uuid"]
+	path = src/github.com/satori/go.uuid
+	url = https://github.com/satori/go.uuid
+[submodule "src/github.com/alecthomas/template"]
+	path = src/github.com/alecthomas/template
+	url = https://github.com/alecthomas/template
+[submodule "src/github.com/alecthomas/units"]
+	path = src/github.com/alecthomas/units
+	url = https://github.com/alecthomas/units
+[submodule "src/golang.org/x/crypto"]
+	path = src/golang.org/x/crypto
+	url = https://go.googlesource.com/crypto
+[submodule "src/golang.org/x/net"]
+	path = src/golang.org/x/net
+	url = https://go.googlesource.com/net
+[submodule "src/gopkg.in/yaml.v2"]
+	path = src/gopkg.in/yaml.v2
+	url = https://gopkg.in/yaml.v2
+[submodule "src/gopkg.in/square/go-jose.v1"]
+	path = src/gopkg.in/square/go-jose.v1
+	url = https://gopkg.in/square/go-jose.v1
+[submodule "src/gopkg.in/hlandau/service.v2"]
+	path = src/gopkg.in/hlandau/service.v2
+	url = https://gopkg.in/hlandau/service.v2
+[submodule "src/gopkg.in/hlandau/configurable.v1"]
+	path = src/gopkg.in/hlandau/configurable.v1
+	url = https://gopkg.in/hlandau/configurable.v1
+[submodule "src/gopkg.in/hlandau/easyconfig.v1"]
+	path = src/gopkg.in/hlandau/easyconfig.v1
+	url = https://gopkg.in/hlandau/easyconfig.v1
+[submodule "src/gopkg.in/hlandau/svcutils.v1"]
+	path = src/gopkg.in/hlandau/svcutils.v1
+	url = https://gopkg.in/hlandau/svcutils.v1
+[submodule "src/gopkg.in/tylerb/graceful.v1"]
+	path = src/gopkg.in/tylerb/graceful.v1
+	url = https://gopkg.in/tylerb/graceful.v1
+[submodule "src/gopkg.in/cheggaaa/pb.v1"]
+	path = src/gopkg.in/cheggaaa/pb.v1
+	url = https://gopkg.in/cheggaaa/pb.v1
+[submodule "src/gopkg.in/alecthomas/kingpin.v2"]
+	path = src/gopkg.in/alecthomas/kingpin.v2
+	url = https://gopkg.in/alecthomas/kingpin.v2
