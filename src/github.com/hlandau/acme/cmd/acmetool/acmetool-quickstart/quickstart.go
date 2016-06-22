@@ -18,31 +18,24 @@ import (
 	"github.com/hlandau/acme/interaction"
 	"github.com/hlandau/acme/storage"
 	"github.com/hlandau/acme/storageops"
-	"github.com/hlandau/xlog"
 	"gopkg.in/hlandau/svcutils.v1/exepath"
 	"gopkg.in/hlandau/svcutils.v1/passwd"
 )
 
-var log xlog.Logger
-var stateFlag *string
-var hooksFlag *string
-var batchFlag *bool
-var expertFlag *bool
+var ctx acmetool.Ctx
+var expert bool
 
-func Main(ctx acmetool.Ctx, expert bool) {
-	log = ctx.Logger
-	stateFlag = &ctx.StateDir
-	hooksFlag = &ctx.HooksDir
-	batchFlag = &ctx.Batch
-	expertFlag = &expert
+func Main(_ctx acmetool.Ctx, _expert bool) {
+	ctx = _ctx
+	expert = _expert
 
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
+	s, err := storage.NewFDB(ctx.StateDir)
+	ctx.Logger.Fatale(err, "storage")
 
 	serverURL := promptServerURL()
 	s.DefaultTarget().Request.Provider = serverURL
 	err = s.SaveTarget(s.DefaultTarget())
-	log.Fatale(err, "set provider URL")
+	ctx.Logger.Fatale(err, "set provider URL")
 
 	// key type
 	keyType := promptKeyType()
@@ -53,7 +46,7 @@ func Main(ctx acmetool.Ctx, expert bool) {
 		if rsaKeySize != 0 {
 			s.DefaultTarget().Request.Key.RSASize = rsaKeySize
 			err = s.SaveTarget(s.DefaultTarget())
-			log.Fatale(err, "set preferred RSA Key size")
+			ctx.Logger.Fatale(err, "set preferred RSA Key size")
 		}
 	case "ecdsa":
 		s.DefaultTarget().Request.Key.Type = "ecdsa"
@@ -61,7 +54,7 @@ func Main(ctx acmetool.Ctx, expert bool) {
 		if ecdsaCurve != "" {
 			s.DefaultTarget().Request.Key.ECDSACurve = ecdsaCurve
 			err = s.SaveTarget(s.DefaultTarget())
-			log.Fatale(err, "set preferred ECDSA curve")
+			ctx.Logger.Fatale(err, "set preferred ECDSA curve")
 		}
 	}
 
@@ -75,21 +68,21 @@ func Main(ctx acmetool.Ctx, expert bool) {
 
 	if len(webroot) != 0 {
 		err = os.MkdirAll(webroot[0], 0755)
-		log.Fatale(err, "couldn't create webroot path")
+		ctx.Logger.Fatale(err, "couldn't create webroot path")
 	}
 
 	s.DefaultTarget().Request.Challenge.WebrootPaths = webroot
 	err = s.SaveTarget(s.DefaultTarget())
-	log.Fatale(err, "set webroot path")
+	ctx.Logger.Fatale(err, "set webroot path")
 
 	prog, err := interaction.Auto.Status(&interaction.StatusInfo{
 		Title: "Registering account...",
 	})
-	log.Fatale(err, "status")
+	ctx.Logger.Fatale(err, "status")
 	prog.SetProgress(0, 1)
 
 	err = storageops.EnsureRegistration(s)
-	log.Fatale(err, "couldn't complete registration")
+	ctx.Logger.Fatale(err, "couldn't complete registration")
 
 	prog.SetProgress(1, 1)
 	prog.Close()
@@ -266,7 +259,7 @@ while read name; do
 done`
 
 func installHook(name, value string) {
-	hooks.Replace(*hooksFlag, name, strings.Replace(value, "@@ACME_STATE_DIR@@", *stateFlag, -1))
+	hooks.Replace(ctx.HooksDir, name, strings.Replace(value, "@@ACME_STATE_DIR@@", ctx.StateDir, -1))
 	// fail silently, allow non-root, makes travis work.
 }
 
@@ -282,7 +275,7 @@ var errStop = fmt.Errorf("stop")
 
 func isCronjobInstalled() bool {
 	ms, err := filepath.Glob("/etc/cron.*/*acmetool*")
-	log.Fatale(err, "glob")
+	ctx.Logger.Fatale(err, "glob")
 	if len(ms) > 0 {
 		return true
 	}
@@ -328,7 +321,7 @@ func formulateCron(root bool) string {
 	// Randomise cron time to avoid hammering the ACME server.
 	var b [2]byte
 	_, err := rand.Read(b[:])
-	log.Panice(err)
+	ctx.Logger.Panice(err)
 
 	m := b[0] % 60
 	h := b[1] % 24
@@ -341,11 +334,11 @@ func formulateCron(root bool) string {
 		s += "root "
 	}
 	s += fmt.Sprintf("%s --batch ", exepath.Abs)
-	if *stateFlag != acmetool.DefaultStateDir {
-		s += fmt.Sprintf(`--state="%s" `, *stateFlag)
+	if ctx.StateDir != acmetool.DefaultStateDir {
+		s += fmt.Sprintf(`--state="%s" `, ctx.StateDir)
 	}
-	if *hooksFlag != acmetool.DefaultHooksDir {
-		s += fmt.Sprintf(`--hooks="%s" `, *hooksFlag)
+	if ctx.HooksDir != acmetool.DefaultHooksDir {
+		s += fmt.Sprintf(`--hooks="%s" `, ctx.HooksDir)
 	}
 
 	s += "reconcile\n"
@@ -369,7 +362,7 @@ func promptCron() {
 		_, err = exec.LookPath("crontab")
 	}
 	if err != nil {
-		log.Warnf("Don't know how to install a cron job on this system, please install the following job:\n%s\n", cronString)
+		ctx.Logger.Warnf("Don't know how to install a cron job on this system, please install the following job:\n%s\n", cronString)
 		return
 	}
 
@@ -379,7 +372,7 @@ func promptCron() {
 		ResponseType: interaction.RTYesNo,
 		UniqueID:     "acmetool-quickstart-install-cronjob",
 	})
-	log.Fatale(err, "interaction")
+	ctx.Logger.Fatale(err, "interaction")
 
 	if r.Cancelled {
 		return
@@ -388,7 +381,7 @@ func promptCron() {
 	if runningAsRoot() {
 		f, err := os.OpenFile("/etc/cron.d/acmetool", os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
 		if err != nil {
-			log.Errore(err, "failed to install cron job at /etc/cron.d/acmetool (does the file already exist?), wanted to install: ", cronString)
+			ctx.Logger.Errore(err, "failed to install cron job at /etc/cron.d/acmetool (does the file already exist?), wanted to install: ", cronString)
 			return
 		}
 
@@ -397,7 +390,7 @@ func promptCron() {
 	} else {
 		err := amendUserCron(cronString, "acmetool")
 		if err != nil {
-			log.Errore(err, "failed to amend user crontab to add: ", cronString)
+			ctx.Logger.Errore(err, "failed to amend user crontab to add: ", cronString)
 			return
 		}
 	}
@@ -447,7 +440,7 @@ func setUserCron(b []byte) error {
 
 func promptInstallCombinedHooks() bool {
 	// Always install if the hook is already installed.
-	hooksPath := *hooksFlag
+	hooksPath := ctx.HooksDir
 
 	if _, err := os.Stat(filepath.Join(hooksPath, "haproxy")); err == nil {
 		return true
@@ -468,9 +461,9 @@ If you place a PEM-encoded DH parameter file at "%s/conf/dhparams", those will a
 Examples of daemons requiring combined files include HAProxy, Hitch and Quassel. The hook script will not generate the files unless one of these daemons is detected, or you configure it to always generate combined files. (See the hook script for configuration documentation.) Therefore, installing the script is a no-op on systems without these daemons installed, and it is always safe to say yes here.
 
 Do you want to install the combined file generation hook? If in doubt, say yes.`,
-			*stateFlag, *stateFlag, *stateFlag),
+			ctx.StateDir, ctx.StateDir, ctx.StateDir),
 		ResponseType: interaction.RTYesNo,
-		Implicit:     !*expertFlag,
+		Implicit:     !expert,
 		UniqueID:     "acmetool-quickstart-install-haproxy-script",
 	})
 	if err != nil {
@@ -505,7 +498,7 @@ The recommended key size is 2048. Unsupported key sizes will be clamped to the n
 Leave blank to use the recommended value, currently 2048.`,
 		ResponseType: interaction.RTLineString,
 		UniqueID:     "acmetool-quickstart-rsa-key-size",
-		Implicit:     !*expertFlag,
+		Implicit:     !expert,
 	})
 	if err != nil {
 		return 0
@@ -552,7 +545,7 @@ If in doubt, select RSA.`,
 			},
 		},
 		UniqueID: "acmetool-quickstart-key-type",
-		Implicit: !*expertFlag,
+		Implicit: !expert,
 	})
 	if err != nil {
 		return "rsa"
@@ -589,7 +582,7 @@ by Let's Encrypt.`,
 			},
 		},
 		UniqueID: "acmetool-quickstart-ecdsa-curve",
-		Implicit: !*expertFlag,
+		Implicit: !expert,
 	})
 	if err != nil {
 		return ""
@@ -616,7 +609,7 @@ Webroot paths vary by OS; please consult your web server configuration.
 		ResponseType: interaction.RTLineString,
 		UniqueID:     "acmetool-quickstart-webroot-path",
 	})
-	log.Fatale(err, "interaction")
+	ctx.Logger.Fatale(err, "interaction")
 
 	if r.Cancelled {
 		os.Exit(1)
@@ -642,7 +635,7 @@ Webroot paths vary by OS; please consult your web server configuration.
 
 Do you want to continue? To enter a different webroot path, select No.`,
 			ResponseType: interaction.RTYesNo,
-			Implicit:     *batchFlag || r1.Noninteractive,
+			Implicit:     ctx.Batch || r1.Noninteractive,
 			UniqueID:     "acmetool-quickstart-webroot-path-unlikely",
 		})
 		if r != nil && r.Cancelled {
@@ -651,13 +644,13 @@ Do you want to continue? To enter a different webroot path, select No.`,
 	}
 
 	err = os.MkdirAll(path, 0755)
-	log.Fatale(err, "could not create directory: ", path)
+	ctx.Logger.Fatale(err, "could not create directory: ", path)
 
 	return path
 }
 
 func promptGettingStarted() {
-	if *batchFlag {
+	if ctx.Batch {
 		return
 	}
 
@@ -672,7 +665,7 @@ To request a certificate, run:
 $ sudo acmetool want example.com www.example.com
 
 If the certificate is successfully obtained, it will be placed in %s/live/example.com/{cert,chain,fullchain,privkey}.
-`, *stateFlag))
+`, ctx.StateDir))
 }
 
 func promptHookMethod() string {
@@ -715,7 +708,7 @@ HOOK: Programmatic challenge provisioning. Advanced users only. Please see docum
 		},
 		UniqueID: "acmetool-quickstart-choose-method",
 	})
-	log.Fatale(err, "interaction")
+	ctx.Logger.Fatale(err, "interaction")
 
 	if r.Cancelled {
 		os.Exit(1)
@@ -759,7 +752,7 @@ The Let's Encrypt Staging Server does not issue publically trusted certificates.
 		Options:      options,
 		UniqueID:     "acmetool-quickstart-choose-server",
 	})
-	log.Fatale(err, "interaction")
+	ctx.Logger.Fatale(err, "interaction")
 
 	if r.Cancelled {
 		os.Exit(1)
@@ -774,7 +767,7 @@ The Let's Encrypt Staging Server does not issue publically trusted certificates.
 				ResponseType: interaction.RTLineString,
 				UniqueID:     "acmetool-quickstart-enter-directory-url",
 			})
-			log.Fatale(err, "interaction")
+			ctx.Logger.Fatale(err, "interaction")
 
 			if r.Cancelled {
 				os.Exit(1)
@@ -791,7 +784,7 @@ The Let's Encrypt Staging Server does not issue publically trusted certificates.
 				ResponseType: interaction.RTAcknowledge,
 				UniqueID:     "acmetool-quickstart-invalid-directory-url",
 			})
-			log.Fatale(err, "interaction")
+			ctx.Logger.Fatale(err, "interaction")
 
 			if r.Cancelled {
 				os.Exit(1)

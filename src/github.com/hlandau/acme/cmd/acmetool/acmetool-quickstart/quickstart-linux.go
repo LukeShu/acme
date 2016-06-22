@@ -16,28 +16,28 @@ import (
 
 func promptSystemd() {
 	if !systemd.IsRunningSystemd() {
-		log.Debugf("not running systemd")
+		ctx.Logger.Debugf("not running systemd")
 		return
 	}
 
-	log.Debug("connecting to systemd")
+	ctx.Logger.Debug("connecting to systemd")
 	conn, err := sddbus.New()
 	if err != nil {
-		log.Errore(err, "connect to systemd")
+		ctx.Logger.Errore(err, "connect to systemd")
 		return
 	}
 
 	defer conn.Close()
-	log.Debug("connected")
+	ctx.Logger.Debug("connected")
 
 	props, err := conn.GetUnitProperties("acmetool-redirector.service")
 	if err != nil {
-		log.Errore(err, "systemd GetUnitProperties")
+		ctx.Logger.Errore(err, "systemd GetUnitProperties")
 		return
 	}
 
 	if props["LoadState"].(string) != "not-found" {
-		log.Info("acmetool-redirector.service unit already installed, skipping")
+		ctx.Logger.Info("acmetool-redirector.service unit already installed, skipping")
 		return
 	}
 
@@ -49,7 +49,7 @@ The service name will be acmetool-redirector.`,
 		ResponseType: interaction.RTYesNo,
 		UniqueID:     "acmetool-quickstart-install-redirector-systemd",
 	})
-	log.Fatale(err, "interaction")
+	ctx.Logger.Fatale(err, "interaction")
 
 	if r.Cancelled {
 		return
@@ -57,13 +57,13 @@ The service name will be acmetool-redirector.`,
 
 	username, err := determineAppropriateUsername()
 	if err != nil {
-		log.Errore(err, "determine appropriate username")
+		ctx.Logger.Errore(err, "determine appropriate username")
 		return
 	}
 
 	f, err := os.OpenFile("/etc/systemd/system/acmetool-redirector.service", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		log.Errore(err, "acmetool-redirector.service unit file already exists?")
+		ctx.Logger.Errore(err, "acmetool-redirector.service unit file already exists?")
 		return
 	}
 	defer f.Close()
@@ -79,19 +79,19 @@ The service name will be acmetool-redirector.`,
 
 	_, err = io.Copy(f, rdr)
 	if err != nil {
-		log.Errore(err, "cannot write unit file")
+		ctx.Logger.Errore(err, "cannot write unit file")
 		return
 	}
 
 	f.Close()
 	err = conn.Reload() // softfail
-	log.Warne(err, "systemctl daemon-reload failed")
+	ctx.Logger.Warne(err, "systemctl daemon-reload failed")
 
 	_, _, err = conn.EnableUnitFiles([]string{"acmetool-redirector.service"}, false, false)
-	log.Errore(err, "failed to enable unit acmetool-redirector.service")
+	ctx.Logger.Errore(err, "failed to enable unit acmetool-redirector.service")
 
 	_, err = conn.StartUnit("acmetool-redirector.service", "replace", nil)
-	log.Errore(err, "failed to start acmetool-redirector")
+	ctx.Logger.Errore(err, "failed to start acmetool-redirector")
 	resultStr := "The acmetool-redirector service was successfully started."
 	if err != nil {
 		resultStr = "The acmetool-redirector service WAS NOT successfully started. You may have a web server listening on port 80. You will need to troubleshoot this yourself."
@@ -104,5 +104,5 @@ The service name will be acmetool-redirector.`,
     %s`, resultStr),
 		UniqueID: "acmetool-quickstart-complete",
 	})
-	log.Errore(err, "interaction")
+	ctx.Logger.Errore(err, "interaction")
 }
