@@ -2,28 +2,35 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	acmetool_account_thumbprint "github.com/hlandau/acme/cmd/acmetool/acmetool-account-thumbprint"
+	acmetool_cull "github.com/hlandau/acme/cmd/acmetool/acmetool-cull"
+	acmetool_import_jwk_account "github.com/hlandau/acme/cmd/acmetool/acmetool-import-jwk-account"
+	acmetool_import_key "github.com/hlandau/acme/cmd/acmetool/acmetool-import-key"
+	acmetool_import_le "github.com/hlandau/acme/cmd/acmetool/acmetool-import-le"
+	acmetool_quickstart "github.com/hlandau/acme/cmd/acmetool/acmetool-quickstart"
+	acmetool_reconcile "github.com/hlandau/acme/cmd/acmetool/acmetool-reconcile"
+	acmetool_redirector "github.com/hlandau/acme/cmd/acmetool/acmetool-redirector"
+	acmetool_revoke "github.com/hlandau/acme/cmd/acmetool/acmetool-revoke"
+	acmetool_status "github.com/hlandau/acme/cmd/acmetool/acmetool-status"
+	acmetool_test_notify "github.com/hlandau/acme/cmd/acmetool/acmetool-test-notify"
+	acmetool_unwant "github.com/hlandau/acme/cmd/acmetool/acmetool-unwant"
+	acmetool_want "github.com/hlandau/acme/cmd/acmetool/acmetool-want"
+
 	"github.com/hlandau/acme/acmeapi"
-	"github.com/hlandau/acme/acmeapi/acmeutils"
 	"github.com/hlandau/acme/hooks"
 	"github.com/hlandau/acme/interaction"
-	"github.com/hlandau/acme/redirector"
-	"github.com/hlandau/acme/responder"
 	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/acme/storageops"
 	"github.com/hlandau/degoutils/xlogconfig"
 	"github.com/hlandau/xlog"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/hlandau/easyconfig.v1/adaptflag"
-	"gopkg.in/hlandau/service.v2"
-	"gopkg.in/square/go-jose.v1"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var log, Log = xlog.New("acmetool")
@@ -138,230 +145,32 @@ func main() {
 
 	switch cmd {
 	case "reconcile":
-		cmdReconcile()
+		acmetool_reconcile.Main(log, *stateFlag)
 	case "cull":
-		cmdCull()
+		acmetool_cull.Main(log, *stateFlag, *cullSimulateFlag)
 	case "status":
-		cmdStatus()
+		acmetool_status.Main(log, *stateFlag)
 	case "account-thumbprint":
-		cmdAccountThumbprint()
+		acmetool_account_thumbprint.Main(log, *stateFlag)
 	case "want":
-		cmdWant()
-		if *wantReconcile {
-			cmdReconcile()
-		}
+		acmetool_want.Main(log, *stateFlag, *wantReconcile, *wantArg)
 	case "unwant":
-		cmdUnwant()
+		acmetool_unwant.Main(log, *stateFlag, *unwantArg)
 	case "quickstart":
-		cmdQuickstart()
+		acmetool_quickstart.Main(log, *stateFlag, *hooksFlag, *batchFlag, *expertFlag)
 	case "redirector":
-		cmdRunRedirector()
+		acmetool_redirector.Main(log, *stateFlag, *redirectorPathFlag, *redirectorGIDFlag)
 	case "test-notify":
-		cmdRunTestNotify()
+		acmetool_test_notify.Main(log, *stateFlag, *hooksFlag, *testNotifyArg)
 	case "import-key":
-		cmdImportKey()
+		acmetool_import_key.Main(log, *stateFlag, *importKeyArg)
 	case "import-jwk-account":
-		cmdImportJWKAccount()
+		acmetool_import_jwk_account.Main(log, *stateFlag, *importJWKURLArg, *importJWKPathArg)
 	case "import-le":
-		cmdImportLE()
-		cmdReconcile()
+		acmetool_import_le.Main(log, *stateFlag, *importLEArg)
 	case "revoke":
-		cmdRevoke()
+		acmetool_revoke.Main(log, *stateFlag, *revokeArg)
 	}
-}
-
-func cmdImportJWKAccount() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	f, err := os.Open(*importJWKPathArg)
-	log.Fatale(err, "cannot open private key file")
-	defer f.Close()
-
-	b, err := ioutil.ReadAll(f)
-	log.Fatale(err, "cannot read file")
-
-	k := jose.JsonWebKey{}
-	err = k.UnmarshalJSON(b)
-	log.Fatale(err, "cannot unmarshal key")
-
-	_, err = s.ImportAccount(*importJWKURLArg, k.Key)
-	log.Fatale(err, "cannot import account key")
-}
-
-func cmdImportKey() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	err = importKey(s, *importKeyArg)
-	log.Fatale(err, "import key")
-}
-
-func cmdReconcile() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	err = storageops.Reconcile(s)
-	log.Fatale(err, "reconcile")
-}
-
-func cmdCull() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	err = storageops.Cull(s, *cullSimulateFlag)
-	log.Fatale(err, "cull")
-}
-
-func cmdStatus() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	info := StatusString(s)
-	log.Fatale(err, "status")
-
-	fmt.Print(info)
-}
-
-func StatusString(s storage.Store) string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "Settings:\n")
-	fmt.Fprintf(&buf, "  ACME_STATE_DIR: %s\n", s.Path())
-	fmt.Fprintf(&buf, "  ACME_HOOKS_DIR: %s\n", hooks.DefaultPath)
-	fmt.Fprintf(&buf, "  Default directory URL: %s\n", s.DefaultTarget().Request.Provider)
-	fmt.Fprintf(&buf, "  Preferred key type: %v\n", &s.DefaultTarget().Request.Key)
-	fmt.Fprintf(&buf, "  Additional webroots:\n")
-	for _, wr := range s.DefaultTarget().Request.Challenge.WebrootPaths {
-		fmt.Fprintf(&buf, "    %s\n", wr)
-	}
-
-	fmt.Fprintf(&buf, "\nAvailable accounts:\n")
-	s.VisitAccounts(func(a *storage.Account) error {
-		fmt.Fprintf(&buf, "  %v\n", a)
-		thumbprint, _ := acmeutils.Base64Thumbprint(a.PrivateKey)
-		fmt.Fprintf(&buf, "    thumbprint: %s\n", thumbprint)
-		return nil
-	})
-
-	fmt.Fprintf(&buf, "\n")
-	s.VisitTargets(func(t *storage.Target) error {
-		fmt.Fprintf(&buf, "%v\n", t)
-
-		c, err := storageops.FindBestCertificateSatisfying(s, t)
-		if err != nil {
-			fmt.Fprintf(&buf, "  error: %v\n", err)
-			return nil // continue
-		}
-
-		renewStr := ""
-		if storageops.CertificateNeedsRenewing(c) {
-			renewStr = " needs-renewing"
-		}
-
-		fmt.Fprintf(&buf, "  best: %v%s\n", c, renewStr)
-		return nil
-	})
-
-	if storageops.HaveUncachedCertificates(s) {
-		fmt.Fprintf(&buf, "\nThere are uncached certificates.\n")
-	}
-
-	return buf.String()
-}
-
-func cmdAccountThumbprint() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	s.VisitAccounts(func(a *storage.Account) error {
-		thumbprint, _ := acmeutils.Base64Thumbprint(a.PrivateKey)
-		fmt.Printf("%s\t%s\n", thumbprint, a.ID())
-		return nil
-	})
-}
-
-func cmdWant() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	alreadyExists := false
-	s.VisitTargets(func(t *storage.Target) error {
-		nm := map[string]struct{}{}
-		for _, n := range t.Satisfy.Names {
-			nm[n] = struct{}{}
-		}
-
-		for _, w := range *wantArg {
-			if _, ok := nm[w]; !ok {
-				return nil
-			}
-		}
-
-		alreadyExists = true
-		return nil
-	})
-
-	if alreadyExists {
-		return
-	}
-
-	tgt := storage.Target{
-		Satisfy: storage.TargetSatisfy{
-			Names: *wantArg,
-		},
-	}
-
-	err = s.SaveTarget(&tgt)
-	log.Fatale(err, "add target")
-}
-
-func cmdUnwant() {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	for _, hn := range *unwantArg {
-		err = storageops.RemoveTargetHostname(s, hn)
-		log.Fatale(err, "remove target hostname ", hn)
-	}
-}
-
-func cmdRunRedirector() {
-	rpath := *redirectorPathFlag
-	if rpath == "" {
-		// redirector process is internet-facing and must never touch private keys
-		storage.Neuter()
-		rpath = determineWebroot()
-	}
-
-	service.Main(&service.Info{
-		Name:          "acmetool",
-		Description:   "acmetool HTTP redirector",
-		DefaultChroot: rpath,
-		NewFunc: func() (service.Runnable, error) {
-			return redirector.New(redirector.Config{
-				Bind:          ":80",
-				ChallengePath: rpath,
-				ChallengeGID:  *redirectorGIDFlag,
-			})
-		},
-	})
-}
-
-func determineWebroot() string {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	webrootPaths := s.DefaultTarget().Request.Challenge.WebrootPaths
-	if len(webrootPaths) > 0 {
-		return webrootPaths[0]
-	}
-
-	return responder.StandardWebrootPath
-}
-
-func cmdRunTestNotify() {
-	err := hooks.NotifyLiveUpdated(*hooksFlag, *stateFlag, *testNotifyArg)
-	log.Errore(err, "notify")
 }
 
 // YAML response file loading.
@@ -407,44 +216,4 @@ func parseResponse(v interface{}) (*interaction.Response, error) {
 	default:
 		return nil, fmt.Errorf("unknown response value")
 	}
-}
-
-func cmdRevoke() {
-	certSpec := *revokeArg
-	f, _ := os.Open(certSpec)
-	//var fi os.FileInfo
-	if f != nil {
-		defer f.Close()
-		//var err error
-		//fi, err = f.Stat()
-		//log.Panice(err)
-	}
-	//u, _ := url.Parse(certSpec)
-
-	switch {
-	//case f != nil && !fi.IsDir(): // is a file path
-
-	//case f != nil && fi.IsDir(): // is a directory path
-	//  f, _ = os.Open(filepath.Join(certSpec, "cert"))
-
-	//case u != nil && u.IsAbs() && acmeapi.ValidURL(certSpec): // is an URL
-
-	case storage.IsWellFormattedCertificateOrKeyID(certSpec):
-		// key or certificate ID
-		revokeByCertificateID(certSpec)
-
-	default:
-		log.Fatalf("don't understand argument, must be a certificate or key ID: %q", certSpec)
-	}
-}
-
-func revokeByCertificateID(certID string) {
-	s, err := storage.NewFDB(*stateFlag)
-	log.Fatale(err, "storage")
-
-	err = storageops.RevokeByCertificateOrKeyID(s, certID)
-	log.Fatale(err, "revoke")
-
-	err = storageops.Reconcile(s)
-	log.Fatale(err, "reconcile")
 }

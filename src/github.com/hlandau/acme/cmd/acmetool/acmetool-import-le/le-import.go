@@ -1,26 +1,34 @@
-package main
+package acmetool_import_le
 
 import (
 	"crypto/x509"
 	"fmt"
-	"github.com/hlandau/acme/acmeapi"
-	"github.com/hlandau/acme/acmeapi/acmeendpoints"
-	"github.com/hlandau/acme/acmeapi/acmeutils"
-	"github.com/hlandau/acme/storage"
-	"golang.org/x/net/context"
-	"gopkg.in/square/go-jose.v1"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	acmetool_reconcile "github.com/hlandau/acme/cmd/acmetool/acmetool-reconcile"
+
+	"github.com/hlandau/acme/acmeapi"
+	"github.com/hlandau/acme/acmeapi/acmeendpoints"
+	"github.com/hlandau/acme/acmeapi/acmeutils"
+	"github.com/hlandau/acme/storage"
+	"github.com/hlandau/xlog"
+	"golang.org/x/net/context"
+	jose "gopkg.in/square/go-jose.v1"
 )
 
-func cmdImportLE() {
-	s, err := storage.NewFDB(*stateFlag)
+func Main(log xlog.Logger, stateDirName, lePath string) {
+	cmdImportLE(log, stateDirName, lePath)
+	acmetool_reconcile.Main(log, stateDirName)
+}
+
+func cmdImportLE(log xlog.Logger, stateDirName, lePath string) {
+	s, err := storage.NewFDB(stateDirName)
 	log.Fatale(err, "storage")
 
-	lePath := *importLEArg
 	accountNames, err := getLEAccountNames(lePath)
 	log.Fatale(err, "cannot inspect accounts directory - do you have permissions to read the Let's Encrypt directory (i.e. are you root)?")
 

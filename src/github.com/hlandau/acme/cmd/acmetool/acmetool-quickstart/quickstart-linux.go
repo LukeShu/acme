@@ -1,16 +1,17 @@
 // +build linux
 
-package main
+package acmetool_quickstart
 
 import (
 	"fmt"
+	"io"
+	"os"
+
 	sddbus "github.com/coreos/go-systemd/dbus"
 	sdunit "github.com/coreos/go-systemd/unit"
 	"github.com/hlandau/acme/interaction"
 	"gopkg.in/hlandau/svcutils.v1/exepath"
 	"gopkg.in/hlandau/svcutils.v1/systemd" // coreos/go-systemd/util requires cgo
-	"io"
-	"os"
 )
 
 func promptSystemd() {

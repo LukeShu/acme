@@ -4,13 +4,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/hlandau/acme/acmeapi"
-	"github.com/hlandau/acme/interaction"
-	"github.com/hlandau/acme/responder"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hlandau/acme/acmeapi"
+	"github.com/hlandau/acme/interaction"
+	"github.com/hlandau/acme/responder"
 )
 
 type interceptor struct {

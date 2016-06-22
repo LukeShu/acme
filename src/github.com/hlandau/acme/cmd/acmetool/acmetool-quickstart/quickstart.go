@@ -1,26 +1,40 @@
-package main
+package acmetool_quickstart
 
 import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"github.com/hlandau/acme/acmeapi"
-	"github.com/hlandau/acme/acmeapi/acmeendpoints"
-	"github.com/hlandau/acme/hooks"
-	"github.com/hlandau/acme/interaction"
-	"github.com/hlandau/acme/storage"
-	"github.com/hlandau/acme/storageops"
-	"gopkg.in/hlandau/svcutils.v1/exepath"
-	"gopkg.in/hlandau/svcutils.v1/passwd"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/hlandau/acme/acmeapi"
+	"github.com/hlandau/acme/acmeapi/acmeendpoints"
+	"github.com/hlandau/acme/hooks"
+	"github.com/hlandau/acme/interaction"
+	"github.com/hlandau/acme/storage"
+	"github.com/hlandau/acme/storageops"
+	"github.com/hlandau/xlog"
+	"gopkg.in/hlandau/svcutils.v1/exepath"
+	"gopkg.in/hlandau/svcutils.v1/passwd"
 )
 
-func cmdQuickstart() {
+var log xlog.Logger
+var stateFlag *string
+var hooksFlag *string
+var batchFlag *bool
+var expertFlag *bool
+
+func Main(logger xlog.Logger, stateDirName, hooksDirName string, batch, expert bool) {
+	log = logger
+	stateFlag = &stateDirName
+	hooksFlag = &hooksDirName
+	batchFlag = &batch
+	expertFlag = &expert
+
 	s, err := storage.NewFDB(*stateFlag)
 	log.Fatale(err, "storage")
 

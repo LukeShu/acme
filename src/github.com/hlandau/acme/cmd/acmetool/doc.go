@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/hlandau/acme/storage"
-	"gopkg.in/alecthomas/kingpin.v2"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 const manPageTemplate = `{{define "FormatFlags"}}\
