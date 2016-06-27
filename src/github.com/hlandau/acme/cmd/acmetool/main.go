@@ -32,42 +32,38 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-var log, Log = xlog.New("acmetool")
+type interactionFlags struct {
+	Stdio        bool
+	ResponseFile string
+}
 
-var (
-	app *acmetool.App
-	stateFlag *string
-	hooksFlag *string
-	batchFlag *bool
-	stdioFlag *bool
-	responseFileFlag *string
-)
-
-func init() {
-	app = &acmetool.App{
+func commandLineParser(ctx *acmetool.Ctx, iFlags *interactionFlags) *acmetool.App {
+	app := &acmetool.App{
 		CommandLine: kingpin.New("acmetool", helpText),
 		Commands:    map[string]func(acmetool.Ctx){},
 	}
 	app.CommandLine.Author("Hugo Landau")
 
-	stateFlag = app.CommandLine.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
+	app.CommandLine.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
 		Default(acmetool.DefaultStateDir).
 		Envar("ACME_STATE_DIR").
 		PlaceHolder(acmetool.DefaultStateDir).
-		String()
+		StringVar(&ctx.StateDir)
 
-	hooksFlag = app.CommandLine.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
+	app.CommandLine.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
 		Default(acmetool.DefaultHooksDir).
 		Envar("ACME_HOOKS_DIR").
 		PlaceHolder(acmetool.DefaultHooksDir).
-		String()
+		StringVar(&ctx.HooksDir)
 
-	batchFlag = app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
-		Bool()
+	app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
+		BoolVar(&ctx.Batch)
 
-	stdioFlag = app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").Bool()
+	app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").
+		BoolVar(&iFlags.Stdio)
 
-	responseFileFlag = app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").ExistingFile()
+	app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").
+		ExistingFileVar(&iFlags.ResponseFile)
 
 	acmetool_reconcile.Register(app)
 	acmetool_cull.Register(app)
@@ -91,9 +87,16 @@ func init() {
 		dpn += info.Name
 		app.CommandLine.Flag(dpn, info.Usage).SetValue(info.Value)
 	})
+
+	return app
 }
 
 func main() {
+	var ctx acmetool.Ctx
+	var iFlags interactionFlags
+	app := commandLineParser(&ctx, &iFlags)
+	ctx.Logger, _ = xlog.New("acmetool")
+
 	syscall.Umask(0) // make sure webroot files can be world-readable
 
 	cmd, err := app.CommandLine.Parse(os.Args[1:])
@@ -101,45 +104,40 @@ func main() {
 		app.CommandLine.Fatalf("%s, try --help", err)
 	}
 
-	*stateFlag, err = filepath.Abs(*stateFlag)
-	log.Fatale(err, "state directory path")
-	*hooksFlag, err = filepath.Abs(*hooksFlag)
-	log.Fatale(err, "hooks directory path")
+	ctx.StateDir, err = filepath.Abs(ctx.StateDir)
+	ctx.Logger.Fatale(err, "state directory path")
+	ctx.HooksDir, err = filepath.Abs(ctx.HooksDir)
+	ctx.Logger.Fatale(err, "hooks directory path")
 
 	acmeapi.UserAgent = "acmetool"
 	xlogconfig.Init()
 
-	if *batchFlag {
+	if ctx.Batch {
 		interaction.NonInteractive = true
 	}
 
-	if *stdioFlag {
+	if iFlags.Stdio {
 		interaction.NoDialog = true
 	}
 
-	if *responseFileFlag == "" {
-		p := filepath.Join(*stateFlag, "conf/responses")
+	if iFlags.ResponseFile == "" {
+		p := filepath.Join(ctx.StateDir, "conf/responses")
 		if _, err := os.Stat(p); err == nil {
-			*responseFileFlag = p
+			iFlags.ResponseFile = p
 		}
 	}
 
-	if *responseFileFlag != "" {
-		err := loadResponseFile(*responseFileFlag)
-		log.Errore(err, "cannot load response file, continuing anyway")
+	if iFlags.ResponseFile != "" {
+		err := loadResponseFile(ctx.Logger, iFlags.ResponseFile)
+		ctx.Logger.Errore(err, "cannot load response file, continuing anyway")
 	}
 
-	app.Commands[cmd](acmetool.Ctx{
-		Logger:   log,
-		StateDir: *stateFlag,
-		HooksDir: *hooksFlag,
-		Batch:    *batchFlag,
-	})
+	app.Commands[cmd](ctx)
 }
 
 // YAML response file loading.
 
-func loadResponseFile(path string) error {
+func loadResponseFile(log xlog.Logger, path string) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
