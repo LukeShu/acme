@@ -9,6 +9,13 @@ import (
 	jose "gopkg.in/square/go-jose.v1"
 )
 
+func Register(app *acmetool.App) {
+	cmd := app.CommandLine.Command("import-jwk-account", "Import a JWK account key")
+	url := cmd.Arg("provider-url", "Provider URL (e.g. https://acme-v01.api.letsencrypt.org/directory)").Required().String()
+	path := cmd.Arg("private-key-file", "Path to private_key.json").Required().ExistingFile()
+	app.Commands["import-jwk-account"] = func(ctx acmetool.Ctx) { Main(ctx, *url, *path) }
+}
+
 func Main(ctx acmetool.Ctx, argURL, argPath string) {
 	s, err := storage.NewFDB(ctx.StateDir)
 	ctx.Logger.Fatale(err, "storage")

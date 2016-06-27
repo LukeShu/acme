@@ -22,6 +22,12 @@ import (
 	"gopkg.in/hlandau/svcutils.v1/passwd"
 )
 
+func Register(app *acmetool.App) {
+	cmd := app.CommandLine.Command("quickstart", "Interactively ask some getting started questions (recommended)")
+	expert := cmd.Flag("expert", "Ask more questions in quickstart wizard").Bool()
+	app.Commands["quickstart"] = func(ctx acmetool.Ctx) { Main(ctx, *expert) }
+}
+
 var ctx acmetool.Ctx
 var expert bool
 

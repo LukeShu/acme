@@ -7,6 +7,13 @@ import (
 	"github.com/hlandau/acme/storage"
 )
 
+func Register(app *acmetool.App) {
+	cmd := app.CommandLine.Command("want", "Add a target with one or more hostnames")
+	reconcile := cmd.Flag("reconcile", "Specify --no-reconcile to skip reconcile after adding target").Default("1").Bool()
+	want := cmd.Arg("hostname", "hostnames for which a certificate should be obtained").Required().Strings()
+	app.Commands["want"] = func(ctx acmetool.Ctx) { Main(ctx, *reconcile, *want) }
+}
+
 func Main(ctx acmetool.Ctx, reconcile bool, want []string) {
 	cmdWant(ctx, want)
 	if reconcile {

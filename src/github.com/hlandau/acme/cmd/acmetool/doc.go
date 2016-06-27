@@ -73,7 +73,5 @@ dropping and daemonization and are applicable only to the redirector subcommand.
 `, acmetool.DefaultStateDir)
 
 func init() {
-	kingpin.CommandLine.Help = helpText
-	kingpin.CommandLine.Author("Hugo Landau")
 	kingpin.ManPageTemplate = manPageTemplate
 }

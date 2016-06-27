@@ -8,6 +8,11 @@ import (
 	"github.com/hlandau/acme/storage"
 )
 
+func Register(app *acmetool.App) {
+	app.CommandLine.Command("account-thumbprint", "Prints account thumbprints")
+	app.Commands["account-thumbprint"] = Main
+}
+
 func Main(ctx acmetool.Ctx) {
 	s, err := storage.NewFDB(ctx.StateDir)
 	ctx.Logger.Fatale(err, "storage")

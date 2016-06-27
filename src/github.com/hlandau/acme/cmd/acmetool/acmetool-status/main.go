@@ -10,6 +10,11 @@ import (
 	"github.com/hlandau/acme/storageops"
 )
 
+func Register(app *acmetool.App) {
+	app.CommandLine.Command("status", "Show active configuration")
+	app.Commands["status"] = Main
+}
+
 func Main(ctx acmetool.Ctx) {
 	s, err := storage.NewFDB(ctx.StateDir)
 	ctx.Logger.Fatale(err, "storage")

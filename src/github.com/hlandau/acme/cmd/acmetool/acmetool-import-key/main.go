@@ -8,6 +8,12 @@ import (
 	"github.com/hlandau/acme/storage"
 )
 
+func Register(app *acmetool.App) {
+	cmd := app.CommandLine.Command("import-key", "Import a certificate private key")
+	filename := cmd.Arg("private-key-file", "Path to PEM-encoded private key").Required().ExistingFile()
+	app.Commands["import-key"] = func(ctx acmetool.Ctx) { Main(ctx, *filename) }
+}
+
 func Main(ctx acmetool.Ctx, filename string) {
 	s, err := storage.NewFDB(ctx.StateDir)
 	ctx.Logger.Fatale(err, "storage")

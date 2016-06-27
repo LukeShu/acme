@@ -8,6 +8,20 @@ import (
 	"github.com/hlandau/acme/storageops"
 )
 
+func Register(app *acmetool.App) {
+	// Arguments we should probably support for revocation:
+	//   A certificate ID
+	//   A key ID
+	//   A path to a PEM-encoded certificate - TODO
+	//   A path to a PEM-encoded private key (revoke all known certificates with that key) - TODO
+	//   A path to a certificate directory - TODO
+	//   A path to a key directory - TODO
+	//   A certificate URL - TODO
+	cmd := app.CommandLine.Command("revoke", "Revoke a certificate")
+	certSpec := cmd.Arg("certificate-id-or-path", "Certificate ID to revoke").String()
+	app.Commands["revoke"] = func(ctx acmetool.Ctx) { Main(ctx, *certSpec) }
+}
+
 func Main(ctx acmetool.Ctx, certSpec string) {
 	f, _ := os.Open(certSpec)
 	//var fi os.FileInfo

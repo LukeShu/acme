@@ -34,85 +34,55 @@ import (
 
 var log, Log = xlog.New("acmetool")
 
-var (
-	stateFlag = kingpin.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
-			Default(acmetool.DefaultStateDir).
-			Envar("ACME_STATE_DIR").
-			PlaceHolder(acmetool.DefaultStateDir).
-			String()
-
-	hooksFlag = kingpin.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
-			Default(acmetool.DefaultHooksDir).
-			Envar("ACME_HOOKS_DIR").
-			PlaceHolder(acmetool.DefaultHooksDir).
-			String()
-
-	batchFlag = kingpin.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
-			Bool()
-
-	stdioFlag = kingpin.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").Bool()
-
-	responseFileFlag = kingpin.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").ExistingFile()
-
-	reconcileCmd = kingpin.Command("reconcile", reconcileHelp).Default()
-
-	cullCmd          = kingpin.Command("cull", "Delete expired, unused certificates")
-	cullSimulateFlag = cullCmd.Flag("simulate", "Show which certificates would be deleted without deleting any").Short('n').Bool()
-
-	statusCmd = kingpin.Command("status", "Show active configuration")
-
-	wantCmd       = kingpin.Command("want", "Add a target with one or more hostnames")
-	wantReconcile = wantCmd.Flag("reconcile", "Specify --no-reconcile to skip reconcile after adding target").Default("1").Bool()
-	wantArg       = wantCmd.Arg("hostname", "hostnames for which a certificate should be obtained").Required().Strings()
-
-	unwantCmd = kingpin.Command("unwant", "Modify targets to remove any mentions of the given hostnames")
-	unwantArg = unwantCmd.Arg("hostname", "hostnames which should be removed from all target files").Required().Strings()
-
-	quickstartCmd = kingpin.Command("quickstart", "Interactively ask some getting started questions (recommended)")
-	expertFlag    = quickstartCmd.Flag("expert", "Ask more questions in quickstart wizard").Bool()
-
-	redirectorCmd      = kingpin.Command("redirector", "HTTP to HTTPS redirector with challenge response support")
-	redirectorPathFlag = redirectorCmd.Flag("path", "Path to serve challenge files from").String()
-	redirectorGIDFlag  = redirectorCmd.Flag("challenge-gid", "GID to chgrp the challenge path to (optional)").String()
-
-	testNotifyCmd = kingpin.Command("test-notify", "Test-execute notification hooks as though given hostnames were updated")
-	testNotifyArg = testNotifyCmd.Arg("hostname", "hostnames which have been updated").Strings()
-
-	importJWKAccountCmd = kingpin.Command("import-jwk-account", "Import a JWK account key")
-	importJWKURLArg     = importJWKAccountCmd.Arg("provider-url", "Provider URL (e.g. https://acme-v01.api.letsencrypt.org/directory)").Required().String()
-	importJWKPathArg    = importJWKAccountCmd.Arg("private-key-file", "Path to private_key.json").Required().ExistingFile()
-
-	importKeyCmd = kingpin.Command("import-key", "Import a certificate private key")
-	importKeyArg = importKeyCmd.Arg("private-key-file", "Path to PEM-encoded private key").Required().ExistingFile()
-
-	importLECmd = kingpin.Command("import-le", "Import a Let's Encrypt client state directory")
-	importLEArg = importLECmd.Arg("le-state-path", "Path to Let's Encrypt state directory").Default("/etc/letsencrypt").ExistingDir()
-
-	// Arguments we should probably support for revocation:
-	//   A certificate ID
-	//   A key ID
-	//   A path to a PEM-encoded certificate - TODO
-	//   A path to a PEM-encoded private key (revoke all known certificates with that key) - TODO
-	//   A path to a certificate directory - TODO
-	//   A path to a key directory - TODO
-	//   A certificate URL - TODO
-	revokeCmd = kingpin.Command("revoke", "Revoke a certificate")
-	revokeArg = revokeCmd.Arg("certificate-id-or-path", "Certificate ID to revoke").String()
-
-	accountThumbprintCmd = kingpin.Command("account-thumbprint", "Prints account thumbprints")
-)
-
-const reconcileHelp = `Reconcile ACME state, idempotently requesting and renewing certificates to satisfy configured targets.
-
-This is the default command.`
-
 func main() {
+	app := &acmetool.App{
+		CommandLine: kingpin.New("acmetool", helpText),
+		Commands:    map[string]func(acmetool.Ctx){},
+	}
+
+	stateFlag := app.CommandLine.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
+		Default(acmetool.DefaultStateDir).
+		Envar("ACME_STATE_DIR").
+		PlaceHolder(acmetool.DefaultStateDir).
+		String()
+
+	hooksFlag := app.CommandLine.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
+		Default(acmetool.DefaultHooksDir).
+		Envar("ACME_HOOKS_DIR").
+		PlaceHolder(acmetool.DefaultHooksDir).
+		String()
+
+	batchFlag := app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
+		Bool()
+
+	stdioFlag := app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").Bool()
+
+	responseFileFlag := app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").ExistingFile()
+
+	app.CommandLine.Author("Hugo Landau")
+
+	acmetool_reconcile.Register(app)
+	acmetool_cull.Register(app)
+	acmetool_status.Register(app)
+	acmetool_want.Register(app)
+	acmetool_unwant.Register(app)
+	acmetool_quickstart.Register(app)
+	acmetool_redirector.Register(app)
+	acmetool_test_notify.Register(app)
+	acmetool_import_jwk_account.Register(app)
+	acmetool_import_key.Register(app)
+	acmetool_import_le.Register(app)
+	acmetool_revoke.Register(app)
+	acmetool_account_thumbprint.Register(app)
+
 	syscall.Umask(0) // make sure webroot files can be world-readable
 
 	adaptflag.Adapt()
-	cmd := kingpin.Parse()
+	cmd, err := app.CommandLine.Parse(os.Args[1:])
+	if err != nil {
+		app.CommandLine.Fatalf("%s, try --help", err)
+	}
 
-	var err error
 	*stateFlag, err = filepath.Abs(*stateFlag)
 	log.Fatale(err, "state directory path")
 	*hooksFlag, err = filepath.Abs(*hooksFlag)
@@ -141,41 +111,12 @@ func main() {
 		log.Errore(err, "cannot load response file, continuing anyway")
 	}
 
-	ctx := acmetool.Ctx{
+	app.Commands[cmd](acmetool.Ctx{
 		Logger:   log,
 		StateDir: *stateFlag,
 		HooksDir: *hooksFlag,
 		Batch:    *batchFlag,
-	}
-
-	switch cmd {
-	case "reconcile":
-		acmetool_reconcile.Main(ctx)
-	case "cull":
-		acmetool_cull.Main(ctx, *cullSimulateFlag)
-	case "status":
-		acmetool_status.Main(ctx)
-	case "account-thumbprint":
-		acmetool_account_thumbprint.Main(ctx)
-	case "want":
-		acmetool_want.Main(ctx, *wantReconcile, *wantArg)
-	case "unwant":
-		acmetool_unwant.Main(ctx, *unwantArg)
-	case "quickstart":
-		acmetool_quickstart.Main(ctx, *expertFlag)
-	case "redirector":
-		acmetool_redirector.Main(ctx, *redirectorPathFlag, *redirectorGIDFlag)
-	case "test-notify":
-		acmetool_test_notify.Main(ctx, *testNotifyArg)
-	case "import-key":
-		acmetool_import_key.Main(ctx, *importKeyArg)
-	case "import-jwk-account":
-		acmetool_import_jwk_account.Main(ctx, *importJWKURLArg, *importJWKPathArg)
-	case "import-le":
-		acmetool_import_le.Main(ctx, *importLEArg)
-	case "revoke":
-		acmetool_revoke.Main(ctx, *revokeArg)
-	}
+	})
 }
 
 // YAML response file loading.

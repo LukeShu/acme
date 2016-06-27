@@ -20,6 +20,12 @@ import (
 	jose "gopkg.in/square/go-jose.v1"
 )
 
+func Register(app *acmetool.App) {
+	cmd := app.CommandLine.Command("import-le", "Import a Let's Encrypt client state directory")
+	lePath := cmd.Arg("le-state-path", "Path to Let's Encrypt state directory").Default("/etc/letsencrypt").ExistingDir()
+	app.Commands["import-le"] = func(ctx acmetool.Ctx) { Main(ctx, *lePath) }
+}
+
 func Main(ctx acmetool.Ctx, lePath string) {
 	cmdImportLE(ctx, lePath)
 	acmetool_reconcile.Main(ctx)
