@@ -75,9 +75,17 @@ func main() {
 	acmetool_revoke.Register(app)
 	acmetool_account_thumbprint.Register(app)
 
+	adaptflag.AdaptWithFunc(func(info adaptflag.Info) {
+		dpn := adaptflag.DottedPath(info.Path)
+		if len(dpn) > 0 {
+			dpn += "."
+		}
+		dpn += info.Name
+		app.CommandLine.Flag(dpn, info.Usage).SetValue(info.Value)
+	})
+
 	syscall.Umask(0) // make sure webroot files can be world-readable
 
-	adaptflag.Adapt()
 	cmd, err := app.CommandLine.Parse(os.Args[1:])
 	if err != nil {
 		app.CommandLine.Fatalf("%s, try --help", err)
