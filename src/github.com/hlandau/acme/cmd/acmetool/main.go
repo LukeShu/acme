@@ -34,32 +34,40 @@ import (
 
 var log, Log = xlog.New("acmetool")
 
-func main() {
-	app := &acmetool.App{
+var (
+	app *acmetool.App
+	stateFlag *string
+	hooksFlag *string
+	batchFlag *bool
+	stdioFlag *bool
+	responseFileFlag *string
+)
+
+func init() {
+	app = &acmetool.App{
 		CommandLine: kingpin.New("acmetool", helpText),
 		Commands:    map[string]func(acmetool.Ctx){},
 	}
+	app.CommandLine.Author("Hugo Landau")
 
-	stateFlag := app.CommandLine.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
+	stateFlag = app.CommandLine.Flag("state", "Path to the state directory (env: ACME_STATE_DIR)").
 		Default(acmetool.DefaultStateDir).
 		Envar("ACME_STATE_DIR").
 		PlaceHolder(acmetool.DefaultStateDir).
 		String()
 
-	hooksFlag := app.CommandLine.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
+	hooksFlag = app.CommandLine.Flag("hooks", "Path to the notification hooks directory (env: ACME_HOOKS_DIR)").
 		Default(acmetool.DefaultHooksDir).
 		Envar("ACME_HOOKS_DIR").
 		PlaceHolder(acmetool.DefaultHooksDir).
 		String()
 
-	batchFlag := app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
+	batchFlag = app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
 		Bool()
 
-	stdioFlag := app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").Bool()
+	stdioFlag = app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").Bool()
 
-	responseFileFlag := app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").ExistingFile()
-
-	app.CommandLine.Author("Hugo Landau")
+	responseFileFlag = app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").ExistingFile()
 
 	acmetool_reconcile.Register(app)
 	acmetool_cull.Register(app)
@@ -83,7 +91,9 @@ func main() {
 		dpn += info.Name
 		app.CommandLine.Flag(dpn, info.Usage).SetValue(info.Value)
 	})
+}
 
+func main() {
 	syscall.Umask(0) // make sure webroot files can be world-readable
 
 	cmd, err := app.CommandLine.Parse(os.Args[1:])
