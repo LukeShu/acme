@@ -57,6 +57,6 @@ func revokeByCertificateID(ctx acmetool.Ctx, certID string) {
 	err = storageops.RevokeByCertificateOrKeyID(s, certID)
 	ctx.Logger.Fatale(err, "revoke")
 
-	err = storageops.Reconcile(s)
+	err = storageops.Reconcile(s, ctx.Interaction)
 	ctx.Logger.Fatale(err, "reconcile")
 }

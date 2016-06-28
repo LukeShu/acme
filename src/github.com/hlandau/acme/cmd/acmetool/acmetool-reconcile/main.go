@@ -19,6 +19,6 @@ func Main(ctx acmetool.Ctx) {
 	s, err := storage.NewFDB(ctx.StateDir)
 	ctx.Logger.Fatale(err, "storage")
 
-	err = storageops.Reconcile(s)
+	err = storageops.Reconcile(s, ctx.Interaction)
 	ctx.Logger.Fatale(err, "reconcile")
 }

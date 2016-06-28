@@ -87,7 +87,7 @@ func Main(_ctx acmetool.Ctx, _expert bool) {
 	ctx.Logger.Fatale(err, "status")
 	prog.SetProgress(0, 1)
 
-	err = storageops.EnsureRegistration(s)
+	err = storageops.EnsureRegistration(s, ctx.Interaction)
 	ctx.Logger.Fatale(err, "couldn't complete registration")
 
 	prog.SetProgress(1, 1)

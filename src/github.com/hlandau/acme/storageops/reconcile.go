@@ -13,6 +13,7 @@ import (
 	"github.com/hlandau/acme/acmeapi/acmeendpoints"
 	"github.com/hlandau/acme/acmeapi/acmeutils"
 	"github.com/hlandau/acme/hooks"
+	"github.com/hlandau/acme/interaction"
 	"github.com/hlandau/acme/responder"
 	"github.com/hlandau/acme/solver"
 	"github.com/hlandau/acme/storage"
@@ -42,26 +43,26 @@ func makeReconcile(store storage.Store) *reconcile {
 	}
 }
 
-func EnsureRegistration(store storage.Store) error {
+func EnsureRegistration(store storage.Store, interactor interaction.Interactor) error {
 	r := makeReconcile(store)
-	return r.EnsureRegistration()
+	return r.EnsureRegistration(interactor)
 }
 
-func (r *reconcile) EnsureRegistration() error {
+func (r *reconcile) EnsureRegistration(interactor interaction.Interactor) error {
 	a, err := r.getAccountByDirectoryURL("")
 	if err != nil {
 		return err
 	}
 
 	cl := r.getClientForAccount(a)
-	return solver.AssistedUpsertRegistration(cl, nil, context.TODO())
+	return solver.AssistedUpsertRegistration(cl, interactor, context.TODO())
 }
 
 // Runs the reconcilation operation.
-func Reconcile(store storage.Store) error {
+func Reconcile(store storage.Store, interactor interaction.Interactor) error {
 	r := makeReconcile(store)
 
-	reconcileErr := r.Reconcile()
+	reconcileErr := r.Reconcile(interactor)
 	log.Errore(reconcileErr, "failed to reconcile")
 
 	reloadErr := r.store.Reload()
@@ -155,7 +156,7 @@ func (r *reconcile) disjoinTargets() (hostnameTargetMapping map[string]*storage.
 	return
 }
 
-func (r *reconcile) Reconcile() error {
+func (r *reconcile) Reconcile(interactor interaction.Interactor) error {
 	err := r.processUncachedCertificates()
 	if err != nil {
 		return err
@@ -164,7 +165,7 @@ func (r *reconcile) Reconcile() error {
 	err = r.processPendingRevocations()
 	log.Errore(err, "could not process pending revocations")
 
-	err = r.processTargets()
+	err = r.processTargets(interactor)
 	log.Errore(err, "error while processing targets")
 	if err != nil {
 		return err
@@ -572,7 +573,7 @@ func (r *reconcile) createNewAccount(directoryURL string) (*storage.Account, err
 	return a, nil
 }
 
-func (r *reconcile) processTargets() error {
+func (r *reconcile) processTargets(interactor interaction.Interactor) error {
 	var merr storage.MultiError
 
 	r.store.VisitTargets(func(t *storage.Target) error {
@@ -584,7 +585,7 @@ func (r *reconcile) processTargets() error {
 		}
 
 		log.Debugf("%v: requesting certificate", t)
-		err = r.requestCertificateForTarget(t)
+		err = r.requestCertificateForTarget(t, interactor)
 		log.Errore(err, t, ": failed to request certificate")
 		if err != nil {
 			// Do not block satisfaction of other targets just because one fails;
@@ -650,7 +651,7 @@ func ensureConceivablySatisfiable(t *storage.Target) {
 	}
 }
 
-func (r *reconcile) requestCertificateForTarget(t *storage.Target) error {
+func (r *reconcile) requestCertificateForTarget(t *storage.Target, interactor interaction.Interactor) error {
 	//return fmt.Errorf("not requesting certificate") // debugging neuter
 
 	ensureConceivablySatisfiable(t)
@@ -662,7 +663,7 @@ func (r *reconcile) requestCertificateForTarget(t *storage.Target) error {
 
 	cl := r.getClientForAccount(acct)
 
-	err = solver.AssistedUpsertRegistration(cl, nil, context.TODO())
+	err = solver.AssistedUpsertRegistration(cl, interactor, context.TODO())
 	if err != nil {
 		return err
 	}
