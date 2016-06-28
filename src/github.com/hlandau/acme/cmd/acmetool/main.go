@@ -60,7 +60,7 @@ func commandLineParser(ctx *acmetool.Ctx, iFlags *interactionFlags) *acmetool.Ap
 		"\"batch\" disables interaction (useful for cron jobs, may require a response file to be provided); "+
 		"\"dialog\" uses the `dialog` program to create text user interfaces; "+
 		"\"stdio\" uses plain terminal prompts; "+
-		"\"auto\" uses dialog if avialable, or falls back to stdio").
+		"\"auto\" (the default) uses dialog if avialable, or stdio otherwise").
 		Default("auto").
 		PlaceHolder("<batch|dialog|stdio|auto>").
 		EnumVar(&iFlags.Mode, "batch", "dialog", "stdio", "auto")
