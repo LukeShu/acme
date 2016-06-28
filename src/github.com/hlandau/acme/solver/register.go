@@ -14,8 +14,6 @@ import (
 // The interactor is used to prompt for terms of service agreement, if
 // agreement has not already been obtained. An e. mail address is prompted for.
 func AssistedUpsertRegistration(cl *acmeapi.Client, interactor interaction.Interactor, ctx context.Context) error {
-	interactor = defaultInteraction(interactor)
-
 	email := ""
 
 	reg := &acmeapi.Registration{}
@@ -99,11 +97,4 @@ func getEmail(interactor interaction.Interactor) (string, error) {
 
 		return addr.Address, nil
 	}
-}
-
-func defaultInteraction(interactor interaction.Interactor) interaction.Interactor {
-	if interactor == nil {
-		return interaction.Auto
-	}
-	return interactor
 }

@@ -81,7 +81,7 @@ func Main(_ctx acmetool.Ctx, _expert bool) {
 	err = s.SaveTarget(s.DefaultTarget())
 	ctx.Logger.Fatale(err, "set webroot path")
 
-	prog, err := interaction.Auto.Status(&interaction.StatusInfo{
+	prog, err := ctx.Interaction.Status(&interaction.StatusInfo{
 		Title: "Registering account...",
 	})
 	ctx.Logger.Fatale(err, "status")
@@ -372,7 +372,7 @@ func promptCron() {
 		return
 	}
 
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title:        "Install auto-renewal cronjob?",
 		Body:         "Would you like to install a cronjob to renew certificates automatically? This is recommended.",
 		ResponseType: interaction.RTYesNo,
@@ -453,7 +453,7 @@ func promptInstallCombinedHooks() bool {
 	}
 
 	// Prompt.
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Install combined certificate files?",
 		Body: fmt.Sprintf(`By default, acmetool stores certificates and private keys separately. The vast majority of daemons prefer this format. However, some daemons, such as HAProxy, require combined files which contain both certificate and private key.
 
@@ -495,7 +495,7 @@ func determineAppropriateUsername() (string, error) {
 }
 
 func promptRSAKeySize() int {
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "RSA Key Size",
 		Body: `Please enter the RSA key size to use for keys and account keys.
 
@@ -522,7 +522,7 @@ Leave blank to use the recommended value, currently 2048.`,
 
 	n, err := strconv.ParseUint(v, 10, 31)
 	if err != nil {
-		interaction.Auto.Prompt(&interaction.Challenge{
+		ctx.Interaction.Prompt(&interaction.Challenge{
 			Title:    "Invalid RSA Key Size",
 			Body:     "The RSA key size must be an integer in decimal form.",
 			UniqueID: "acmetool-quickstart-invalid-rsa-key-size",
@@ -534,7 +534,7 @@ Leave blank to use the recommended value, currently 2048.`,
 }
 
 func promptKeyType() string {
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Key Type Selection",
 		Body: `Select the type of keys you want to use for account keys and certificates.
 
@@ -566,7 +566,7 @@ If in doubt, select RSA.`,
 }
 
 func promptECDSACurve() string {
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "ECDSA Curve Selection",
 		Body: `Please select the ECDSA curve to use for keys and account keys.
 
@@ -603,7 +603,7 @@ by Let's Encrypt.`,
 }
 
 func promptWebrootDir() string {
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Enter Webroot Path",
 		Body: `Please enter the path at which challenges should be stored.
 
@@ -625,7 +625,7 @@ Webroot paths vary by OS; please consult your web server configuration.
 	path := r.Value
 	path = strings.TrimRight(strings.TrimSpace(path), "/")
 	if !filepath.IsAbs(path) {
-		interaction.Auto.Prompt(&interaction.Challenge{
+		ctx.Interaction.Prompt(&interaction.Challenge{
 			Title:    "Invalid Webroot Path",
 			Body:     "The webroot path must be an absolute path.",
 			UniqueID: "acmetool-quickstart-webroot-path-invalid",
@@ -635,13 +635,13 @@ Webroot paths vary by OS; please consult your web server configuration.
 
 	if !strings.HasSuffix(path, "/.well-known/acme-challenge") {
 		r1 := r
-		r, err = interaction.Auto.Prompt(&interaction.Challenge{
+		r, err = ctx.Interaction.Prompt(&interaction.Challenge{
 			Title: "Are you sure?",
 			Body: `The webroot path you have entered does not end in "/.well-known/acme-challenge". This path will only work if you have specially configured your webserver to map requests for that path to the specified directory.
 
 Do you want to continue? To enter a different webroot path, select No.`,
 			ResponseType: interaction.RTYesNo,
-			Implicit:     ctx.Batch || r1.Noninteractive,
+			Implicit:     (ctx.Interaction.Fresh == nil) || r1.Noninteractive,
 			UniqueID:     "acmetool-quickstart-webroot-path-unlikely",
 		})
 		if r != nil && r.Cancelled {
@@ -656,7 +656,7 @@ Do you want to continue? To enter a different webroot path, select No.`,
 }
 
 func promptGettingStarted() {
-	if ctx.Batch {
+	if ctx.Interaction.Fresh == nil {
 		return
 	}
 
@@ -675,7 +675,7 @@ If the certificate is successfully obtained, it will be placed in %s/live/exampl
 }
 
 func promptHookMethod() string {
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Select Challenge Conveyance Method",
 		Body: `acmetool needs to be able to convey challenge responses to the ACME server in order to prove its control of the domains for which you issue certificates. These authorizations expire rapidly, as do ACME-issued certificates (Let's Encrypt certificates have a 90 day lifetime), thus it is essential that the completion of these challenges is a) automated and b) functioning properly. There are several options by which challenges can be facilitated:
 
@@ -747,7 +747,7 @@ func promptServerURL() string {
 		Value: "url",
 	})
 
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Select ACME Server",
 		Body: `Please choose an ACME server from which to request certificates. Your principal choices are the Let's Encrypt Live Server, and the Let's Encrypt Staging Server.
 
@@ -767,7 +767,7 @@ The Let's Encrypt Staging Server does not issue publically trusted certificates.
 
 	if r.Value == "url" {
 		for {
-			r, err = interaction.Auto.Prompt(&interaction.Challenge{
+			r, err = ctx.Interaction.Prompt(&interaction.Challenge{
 				Title:        "Select ACME Server",
 				Body:         `Please enter the "Directory URL" of an ACME server. This must be an HTTPS URL pointing to the ACME directory for the server.`,
 				ResponseType: interaction.RTLineString,
@@ -784,7 +784,7 @@ The Let's Encrypt Staging Server does not issue publically trusted certificates.
 				break
 			}
 
-			interaction.Auto.Prompt(&interaction.Challenge{
+			ctx.Interaction.Prompt(&interaction.Challenge{
 				Title:        "Invalid ACME URL",
 				Body:         "That was not a valid ACME Directory URL. An ACME Directory URL must be a valid HTTPS URL.",
 				ResponseType: interaction.RTAcknowledge,

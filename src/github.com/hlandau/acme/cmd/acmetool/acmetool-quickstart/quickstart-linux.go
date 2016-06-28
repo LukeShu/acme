@@ -41,7 +41,7 @@ func promptSystemd() {
 		return
 	}
 
-	r, err := interaction.Auto.Prompt(&interaction.Challenge{
+	r, err := ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "Install Redirector as systemd Service?",
 		Body: `Would you like acmetool to automatically install the redirector as a systemd service?
 
@@ -97,7 +97,7 @@ The service name will be acmetool-redirector.`,
 		resultStr = "The acmetool-redirector service WAS NOT successfully started. You may have a web server listening on port 80. You will need to troubleshoot this yourself."
 	}
 
-	_, err = interaction.Auto.Prompt(&interaction.Challenge{
+	_, err = ctx.Interaction.Prompt(&interaction.Challenge{
 		Title: "systemd Service Installation Complete",
 		Body: fmt.Sprintf(`acmetool-redirector has been installed as a systemd service.
     

@@ -33,7 +33,7 @@ import (
 )
 
 type interactionFlags struct {
-	Stdio        bool
+	Mode string
 	ResponseFile string
 }
 
@@ -56,11 +56,14 @@ func commandLineParser(ctx *acmetool.Ctx, iFlags *interactionFlags) *acmetool.Ap
 		PlaceHolder(acmetool.DefaultHooksDir).
 		StringVar(&ctx.HooksDir)
 
-	app.CommandLine.Flag("batch", "Do not attempt interaction; useful for cron jobs. (acmetool can still obtain responses from a response file, if one was provided.)").
-		BoolVar(&ctx.Batch)
-
-	app.CommandLine.Flag("stdio", "Don't attempt to use console dialogs; fall back to stdio prompts").
-		BoolVar(&iFlags.Stdio)
+	app.CommandLine.Flag("interaction","Set the interaction mode."+
+		"\"batch\" disables interaction (useful for cron jobs, may require a response file to be provided); "+
+		"\"dialog\" uses the `dialog` program to create text user interfaces; "+
+		"\"stdio\" uses plain terminal prompts; "+
+		"\"auto\" uses dialog if avialable, or falls back to stdio").
+		Default("auto").
+		PlaceHolder("<batch|dialog|stdio|auto>").
+		EnumVar(&iFlags.Mode, "batch", "dialog", "stdio", "auto")
 
 	app.CommandLine.Flag("response-file", "Read dialog responses from the given file (default: $ACME_STATE_DIR/conf/responses)").
 		ExistingFileVar(&iFlags.ResponseFile)
@@ -96,8 +99,14 @@ func main() {
 	var iFlags interactionFlags
 	app := commandLineParser(&ctx, &iFlags)
 	ctx.Logger, _ = xlog.New("acmetool")
+	ctx.Interaction = interaction.MaybeCannedInteraction{
+		Canned: interaction.NewCannedInteraction(),
+		Fresh: nil,
+	}
 
 	syscall.Umask(0) // make sure webroot files can be world-readable
+	acmeapi.UserAgent = "acmetool"
+	xlogconfig.Init()
 
 	cmd, err := app.CommandLine.Parse(os.Args[1:])
 	if err != nil {
@@ -109,15 +118,21 @@ func main() {
 	ctx.HooksDir, err = filepath.Abs(ctx.HooksDir)
 	ctx.Logger.Fatale(err, "hooks directory path")
 
-	acmeapi.UserAgent = "acmetool"
-	xlogconfig.Init()
-
-	if ctx.Batch {
-		interaction.NonInteractive = true
-	}
-
-	if iFlags.Stdio {
-		interaction.NoDialog = true
+	switch iFlags.Mode {
+	case "batch":
+		ctx.Interaction.Fresh = nil
+	case "dialog":
+		ctx.Interaction.Fresh, err = interaction.NewDialogInteraction()
+		ctx.Logger.Fatale(err, "")
+	case "stdio":
+		ctx.Interaction.Fresh = interaction.Stdio
+	case "auto":
+		ctx.Interaction.Fresh, err = interaction.NewDialogInteraction()
+		if err != nil {
+			ctx.Interaction.Fresh = interaction.Stdio
+		}
+	default:
+		panic("invalid result from kingpin Enum")
 	}
 
 	if iFlags.ResponseFile == "" {
@@ -126,9 +141,8 @@ func main() {
 			iFlags.ResponseFile = p
 		}
 	}
-
 	if iFlags.ResponseFile != "" {
-		err := loadResponseFile(ctx.Logger, iFlags.ResponseFile)
+		err := loadResponseFile(ctx.Logger, iFlags.ResponseFile, &ctx.Interaction.Canned)
 		ctx.Logger.Errore(err, "cannot load response file, continuing anyway")
 	}
 
@@ -137,7 +151,7 @@ func main() {
 
 // YAML response file loading.
 
-func loadResponseFile(log xlog.Logger, path string) error {
+func loadResponseFile(log xlog.Logger, path string, canned *interaction.CannedInteraction) error {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -155,7 +169,7 @@ func loadResponseFile(log xlog.Logger, path string) error {
 			log.Errore(err, "response for ", k, " invalid")
 			continue
 		}
-		interaction.SetResponse(k, r)
+		canned.SetResponse(k, r)
 	}
 
 	return nil

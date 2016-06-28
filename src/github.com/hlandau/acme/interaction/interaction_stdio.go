@@ -12,10 +12,7 @@ import (
 	"sync"
 )
 
-type stdioInteractor struct{}
-
-// Interactor which uses un-fancy stdio prompts.
-var Stdio Interactor = stdioInteractor{}
+type stdioInteraction struct{}
 
 type stdioStatusSink struct {
 	closeChan  chan struct{}
@@ -88,7 +85,7 @@ A:
 	close(ss.closedChan)
 }
 
-func (stdioInteractor) Status(c *StatusInfo) (StatusSink, error) {
+func (stdioInteraction) Status(c *StatusInfo) (StatusSink, error) {
 	ss := &stdioStatusSink{
 		closeChan:  make(chan struct{}),
 		closedChan: make(chan struct{}),
@@ -101,7 +98,7 @@ func (stdioInteractor) Status(c *StatusInfo) (StatusSink, error) {
 	return ss, nil
 }
 
-func (stdioInteractor) Prompt(c *Challenge) (*Response, error) {
+func (stdioInteraction) Prompt(c *Challenge) (*Response, error) {
 	switch c.ResponseType {
 	case RTAcknowledge:
 		return stdioAcknowledge(c)
@@ -122,13 +119,13 @@ func stdioAcknowledge(c *Challenge) (*Response, error) {
 		p = "Press Return to continue."
 	}
 
-	PrintStderrMessage(c.Title, fmt.Sprintf("%s\n\n%s", c.Body, p))
+	printStderrMessage(c.Title, fmt.Sprintf("%s\n\n%s", c.Body, p))
 
 	waitReturn()
 	return &Response{}, nil
 }
 
-func PrintStderrMessage(title, body string) {
+func printStderrMessage(title, body string) {
 	fmt.Fprintf(os.Stderr, "%s\n%s\n", titleLine(title), wordwrap.WrapString(body, lineLength))
 }
 
@@ -153,7 +150,7 @@ func stdioLineString(c *Challenge) (*Response, error) {
 		p = ">"
 	}
 
-	PrintStderrMessage(c.Title, fmt.Sprintf("%s\n\n%s", c.Body, p))
+	printStderrMessage(c.Title, fmt.Sprintf("%s\n\n%s", c.Body, p))
 
 	v := waitLine()
 	return &Response{Value: v}, nil
@@ -166,7 +163,7 @@ func stdioSelect(c *Challenge) (*Response, error) {
 		p = ">"
 	}
 
-	PrintStderrMessage(c.Title, fmt.Sprintf("%s\n\n", c.Body))
+	printStderrMessage(c.Title, fmt.Sprintf("%s\n\n", c.Body))
 
 	for i, o := range c.Options {
 		t := o.Title

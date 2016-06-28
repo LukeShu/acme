@@ -10,11 +10,22 @@ import (
 	"syscall"
 )
 
-type dialogInteractor struct{}
+type dialogInteraction struct{
+	cmdName string
+	cmdType string
+}
 
-// Invokes a dialog program to create terminal dialog boxes. Fails if no such
-// program is available.
-var Dialog Interactor = dialogInteractor{}
+func NewDialogInteraction() (Interactor, error) {
+	cmdName, cmdType := findDialogCommand()
+	if cmdName == "" {
+		return nil, fmt.Errorf("cannot find whiptail or dialog binary in path")
+	}
+	di := &dialogInteraction{
+		cmdName: cmdName,
+		cmdType: cmdType,
+	}
+	return di, nil
+}
 
 type dialogStatusSink struct {
 	closeChan  chan struct{}
@@ -78,11 +89,7 @@ A:
 	close(ss.closedChan)
 }
 
-func (dialogInteractor) Status(c *StatusInfo) (StatusSink, error) {
-	cmdName, _ := findDialogCommand()
-	if cmdName == "" {
-		return nil, fmt.Errorf("cannot find whiptail or dialog binary in path")
-	}
+func (di *dialogInteraction) Status(c *StatusInfo) (StatusSink, error) {
 
 	width := "78"
 	height := fmt.Sprintf("%d", strings.Count(c.StatusLine, "\n")+5)
@@ -101,7 +108,7 @@ func (dialogInteractor) Status(c *StatusInfo) (StatusSink, error) {
 
 	defer pipeR.Close()
 
-	cmd := exec.Command(cmdName, opts...)
+	cmd := exec.Command(di.cmdName, opts...)
 	cmd.Stdin = pipeR
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -124,21 +131,21 @@ func (dialogInteractor) Status(c *StatusInfo) (StatusSink, error) {
 	return ss, nil
 }
 
-func (dialogInteractor) Prompt(c *Challenge) (*Response, error) {
-	cmdName, cmdType := findDialogCommand()
-	if cmdName == "" {
-		return nil, fmt.Errorf("cannot find whiptail or dialog binary in path")
-	}
-
+func (di *dialogInteraction) Prompt(c *Challenge) (*Response, error) {
 	width := "78"
 	height := "49"
-	yesLabelArg := "--yes-label"
-	noLabelArg := "--no-label"
-	noTagsArg := "--no-tags"
-	if cmdType == "whiptail" {
+	var yesLabelArg, noLabelArg, noTagsArg string
+	switch di.cmdType {
+	case "dialog":
+		yesLabelArg = "--yes-label"
+		noLabelArg = "--no-label"
+		noTagsArg = "--no-tags"
+	case "whiptail":
 		yesLabelArg = "--yes-button"
 		noLabelArg = "--no-button"
 		noTagsArg = "--notags"
+	default:
+		panic("invalid value of cmdType")
 	}
 
 	var opts []string
@@ -186,7 +193,7 @@ func (dialogInteractor) Prompt(c *Challenge) (*Response, error) {
 		}
 	}
 
-	cmd := exec.Command(cmdName, opts...)
+	cmd := exec.Command(di.cmdName, opts...)
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -231,21 +238,12 @@ func (dialogInteractor) Prompt(c *Challenge) (*Response, error) {
 	return res, nil
 }
 
-var dialogCommand = ""
-var dialogCommandType = ""
-
 func findDialogCommand() (string, string) {
-	if dialogCommand != "" {
-		return dialogCommand, dialogCommandType
-	}
-
 	// not using whiptail for now, see #18
 	for _, s := range []string{"dialog"} {
 		p, err := exec.LookPath(s)
 		if err == nil {
-			dialogCommand = p
-			dialogCommandType = s
-			return dialogCommand, dialogCommandType
+			return p, s
 		}
 	}
 
