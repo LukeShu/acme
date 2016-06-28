@@ -68,6 +68,11 @@ acmetool stores its state in a state directory. It can be specified on
 invocation via the --state option; otherwise, the path in ACME_STATE_DIR is
 used, or, failing that, the path "%s" (recommended).
 
+The --interaction and --response-file options control how acmetool
+interacts with the user.  They mainly affect the "quickstart"
+subcommand, but also the "reconcile" and "revoke" subcommands if they
+need to register a new client account.
+
 The --xlog options control the logging. The --service options control privilege
 dropping and daemonization and are applicable only to the redirector subcommand.
 `, acmetool.DefaultStateDir)
