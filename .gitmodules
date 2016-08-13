@@ -60,7 +60,7 @@
 	url = https://gopkg.in/hlandau/configurable.v1
 [submodule "src/gopkg.in/hlandau/easyconfig.v1"]
 	path = src/gopkg.in/hlandau/easyconfig.v1
-	url = https://gopkg.in/hlandau/easyconfig.v1
+	url = https://github.com/LukeShu/easyconfig
 [submodule "src/gopkg.in/hlandau/svcutils.v1"]
 	path = src/gopkg.in/hlandau/svcutils.v1
 	url = https://gopkg.in/hlandau/svcutils.v1
