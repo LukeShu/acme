@@ -72,4 +72,4 @@
 	url = https://gopkg.in/cheggaaa/pb.v1
 [submodule "src/gopkg.in/alecthomas/kingpin.v2"]
 	path = src/gopkg.in/alecthomas/kingpin.v2
-	url = https://gopkg.in/alecthomas/kingpin.v2
+	url = https://github.com/LukeShu/kingpin
